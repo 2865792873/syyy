@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>玉渊潭公园 · 无障碍智慧导览 | 适老化AI路线规划</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #F0EBE1;
+            font-family: 'Segoe UI', 'Roboto', 'Noto Sans', system-ui, sans-serif;
+            padding: 20px;
+            color: #1E2A2F;
+        }
+
+        /* 适老化超大控件，高对比 */
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #FFFFFF;
+            border-radius: 40px;
+            box-shadow: 0 16px 32px rgba(0,0,0,0.12);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2C5F2D;
+            color: white;
+            padding: 24px 32px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-layout {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        /* 侧边栏——适老交互区 */
+        .sidebar {
+            flex: 1.2;
+            min-width: 330px;
+            background: #FEFAF3;
+            padding: 28px 24px;
+            border-right: 2px solid #E2D8CC;
+        }
+
+        /* 地图区——放置真实导览图 + 交互画布 */
+        .map-area {
+            flex: 2.5;
+            background: #FCF6EA;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 通用大按钮样式 */
+        .btn-large {
+            background: #3B7A3E;
+            border: none;
+            color: white;
+            font-size: 1.25rem;
+            font-weight: bold;
+            padding: 14px 18px;
+            border-radius: 48px;
+            cursor: pointer;
+            transition: 0.15s;
+            margin: 8px 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            font-family: inherit;
+        }
+        .btn-large:hover {
+            background: #255C28;
+            transform: scale(1.01);
+        }
+        .btn-secondary {
+            background: #E07C3C;
+        }
+        .btn-secondary:hover {
+            background: #C25D2A;
+        }
+        .btn-outline {
+            background: #FFF2E0;
+            color: #2C5F2D;
+            border: 2px solid #2C5F2D;
+        }
+        .btn-outline:hover {
+            background: #E2E6CF;
+        }
+        .btn-emergency {
+            background: #C42E2E;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(196,46,46,0.5);}
+            100% { box-shadow: 0 0 0 12px rgba(196,46,46,0);}
+        }
+        .dest-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        .dest-btn {
+            background: #F1E7DA;
+            font-size: 1.15rem;
+            padding: 10px 20px;
+            border-radius: 40px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .dest-btn.active {
+            background: #2C5F2D;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .pref-radio {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 16px 0;
+            font-size: 1.15rem;
+            font-weight: 500;
+        }
+        .pref-radio label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #EAE1D4;
+            padding: 6px 18px;
+            border-radius: 40px;
+        }
+        input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #2C5F2D;
+        }
+        .info-panel {
+            background: #E9F0E3;
+            border-radius: 28px;
+            padding: 16px;
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+        .facility-list {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 1rem;
+        }
+        .facility-item {
+            background: white;
+            margin: 8px 0;
+            padding: 8px 14px;
+            border-radius: 32px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .voice-panel {
+            background: #2D3E2B;
+            color: #FFF1E0;
+            padding: 16px;
+            border-radius: 36px;
+            margin-top: 12px;
+        }
+        .nav-control {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+        .map-container {
+            position: relative;
+            border-radius: 36px;
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            background: #D9CFB5;
+        }
+        #parkMapImg {
+            width: 100%;
+            height: auto;
+            display: block;
+            pointer-events: none;  /* 让canvas捕获点击 */
+        }
+        #routeCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        .click-hint {
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 800px) {
+            .sidebar, .map-area { flex: 1 1 100%; }
+            .header h1 { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header">
+        <h1>🌿 玉渊潭无障碍·智慧向导</h1>
+        <p>轮椅友好 | 台阶陡坡自动规避 | 手动语音播报·地图交互引导</p>
+    </div>
+    <div class="main-layout">
+        <!-- 左侧：适老化核心功能 -->
+        <div class="sidebar">
+            <!-- 目的地便捷选择 -->
+            <div class="info-panel" style="margin-bottom: 20px;">
+                <div style="font-size:1.4rem; font-weight:bold;">📍 1. 选起点/终点</div>
+                <div style="margin-top: 12px;">🚩 起点</div>
+                <div class="dest-grid" id="startPoints"></div>
+                <div>🏁 终点</div>
+                <div class="dest-grid" id="endPoints"></div>
+                <button id="voiceDestBtn" class="btn-large btn-outline" style="width:100%; margin-top: 8px;">🎤 语音说终点</button>
+                <div class="click-hint">💡 提示：也可直接点击地图上的景点图标来设置起点/终点</div>
+            </div>
+
+            <!-- AI路线偏好规划 -->
+            <div class="info-panel" style="margin-bottom: 20px;">
+                <div style="font-size:1.4rem; font-weight:bold;">🧠 2. AI无障碍规划</div>
+                <div class="pref-radio">
+                    <label><input type="radio" name="pref" value="gentle" checked> 🐢 最平缓 (避台阶/陡坡)</label>
+                    <label><input type="radio" name="pref" value="short"> ⚡ 距离最短</label>
+                    <label><input type="radio" name="pref" value="facilities"> 🪑 休息设施最多</label>
+                </div>
+                <button id="planRouteBtn" class="btn-large" style="width:100%">✨ 智能规划无障碍路线</button>
+                <div id="routeSuggestion" class="info-panel" style="margin-top: 16px; background:#FEF4E2;">
+                    <strong>📋 推荐路线</strong><br>
+                    点击规划后展示可选路线（点击选用）
+                </div>
+            </div>
+
+            <!-- 沿途设施动态标注 + 自选语音模块 -->
+            <div class="info-panel" style="margin-bottom: 20px;">
+                <div style="font-size:1.3rem; font-weight:bold;">♿ 3. 沿途无障碍设施</div>
+                <div id="facilitiesAlong" class="facility-list">👉 规划路线后，沿途设施自动显示</div>
+            </div>
+
+            <!-- 自选语音播报功能区 (手动触发，绝不自动播报) -->
+            <div class="voice-panel">
+                <div style="font-size:1.3rem; font-weight:bold;">🔊 自选语音播报</div>
+                <div class="nav-control">
+                    <button id="speakRouteSummary" class="btn-outline" style="background:#3B7A3E; color:white;">🗣️ 播报路线摘要</button>
+                    <button id="speakFacilities" class="btn-outline" style="background:#3B7A3E; color:white;">🚻 播报沿途设施</button>
+                </div>
+                <div class="nav-control">
+                    <button id="speakStepPrev" class="btn-outline">⏪ 上一步指引</button>
+                    <button id="speakStepNext" class="btn-outline">🔉 播报下一步 →</button>
+                    <button id="repeatCurrentStep" class="btn-outline">🔄 重播当前指引</button>
+                </div>
+                <div id="manualVoiceMsg" style="margin-top: 12px; font-size:0.9rem; background:#1E2F1C; padding: 8px; border-radius: 28px; text-align:center;">
+                    💬 点击上方按钮，手动获取语音导航信息
+                </div>
+            </div>
+
+            <!-- 应急保障（手动应急语音可选） -->
+            <div class="info-panel" style="margin-top: 8px;">
+                <div style="font-size:1.3rem; font-weight:bold;">🆘 应急安全保障</div>
+                <button id="emergencyBtn" class="btn-large btn-emergency" style="width:100%">🚨 一键求助（弹窗+手动语音）</button>
+                <button id="simulateClosureBtn" class="btn-large btn-secondary" style="margin-top: 10px;">⚠️ 模拟路段临时封闭 → 重规划</button>
+                <button id="evacuationBtn" class="btn-large btn-outline" style="margin-top: 8px;">🚪 最近无障碍出口 & 疏散路线</button>
+                <button id="speakEvacuation" class="btn-outline" style="margin-top: 8px; width:100%">📢 语音播报疏散指引</button>
+            </div>
+        </div>
+
+        <!-- 右侧：真实地图+交互画布 -->
+        <div class="map-area">
+            <div class="map-container" id="mapContainer">
+                <!-- 用户提供的玉渊潭导览图 IMG_3004.png -->
+                <img id="parkMapImg" src="IMG_3004.png" alt="玉渊潭公园导览图" style="width:100%; height:auto; display:block;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 800 600%22%3E%3Crect width=%22800%22 height=%22600%22 fill=%22%23DDD3BB%22/%3E%3Ctext x=%2230%22 y=%2230%22 fill=%22%23333%22 font-size=%2216%22%3E导览图加载失败，请确保IMG_3004.png在同一目录%3C/text%3E%3C/svg%3E';">
+                <canvas id="routeCanvas"></canvas>
+            </div>
+            <div id="clickFeedback" class="click-hint" style="background:#2C5F2D;">🗺️ 点击地图上的景点图标位置，可快速设为起点或终点（弹出选择）</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --------------------------------------------------------------
+    // 玉渊潭公园节点数据 (真实景点，坐标基于导览图比例估算，方便地图交互)
+    // 坐标 x,y (0~1) 对应图片宽高比例
+    // --------------------------------------------------------------
+    const nodes = {
+        "北门": { id: "north", x: 0.18, y: 0.10, facilities: ["休息座椅", "服务中心"] },
+        "西北门": { id: "nw", x: 0.70, y: 0.08, facilities: ["卫生间", "无障碍厕所"] },
+        "西南门": { id: "sw", x: 0.87, y: 0.68, facilities: ["休息座椅", "轮椅租借点"] },
+        "南门": { id: "south", x: 0.56, y: 0.90, facilities: ["游客服务中心", "无障碍卫生间"] },
+        "中堤桥": { id: "bridge", x: 0.48, y: 0.48, facilities: ["观景休息区"] },
+        "樱花园(樱花区)": { id: "sakura", x: 0.28, y: 0.28, facilities: ["休息座椅", "商店", "无障碍坡道"] },
+        "玉渊亭": { id: "yuyuan", x: 0.64, y: 0.35, facilities: ["休息座椅"] },
+        "生命绿洲": { id: "oasis", x: 0.42, y: 0.70, facilities: ["卫生间", "无障碍厕所", "休息亭"] },
+        "游客服务中心": { id: "service", x: 0.33, y: 0.80, facilities: ["医务室", "轮椅租借", "无障碍电梯"] }
+    };
+
+    // 路段数据 (无障碍属性)
+    const edges = [
+        { from: "北门", to: "樱花园(樱花区)", dist: 280, stairs: false, steep: false },
+        { from: "北门", to: "西北门", dist: 320, stairs: false, steep: true },
+        { from: "西北门", to: "玉渊亭", dist: 240, stairs: true, steep: false },
+        { from: "西北门", to: "中堤桥", dist: 380, stairs: false, steep: false },
+        { from: "樱花园(樱花区)", to: "中堤桥", dist: 200, stairs: false, steep: false },
+        { from: "樱花园(樱花区)", to: "玉渊亭", dist: 180, stairs: false, steep: false },
+        { from: "玉渊亭", to: "中堤桥", dist: 150, stairs: false, steep: false },
+        { from: "玉渊亭", to: "生命绿洲", dist: 300, stairs: true, steep: false },
+        { from: "中堤桥", to: "生命绿洲", dist: 220, stairs: false, steep: false },
+        { from: "中堤桥", to: "西南门", dist: 450, stairs: false, steep: true },
+        { from: "生命绿洲", to: "西南门", dist: 260, stairs: false, steep: false },
+        { from: "生命绿洲", to: "南门", dist: 190, stairs: false, steep: false },
+        { from: "生命绿洲", to: "游客服务中心", dist: 140, stairs: false, steep: false },
+        { from: "游客服务中心", to: "南门", dist: 210, stairs: false, steep: false },
+        { from: "游客服务中心", to: "西南门", dist: 310, stairs: false, steep: true }
+    ];
+
+    const extraFacilities = [
+        { name: "无障碍厕所(西北门旁)", nodeNear: "西北门", type: "🚻 无障碍厕所" },
+        { name: "轮椅坡道(樱花园入口)", nodeNear: "樱花园(樱花区)", type: "🦽 轮椅坡道" },
+        { name: "休息座椅群(中堤桥)", nodeNear: "中堤桥", type: "🪑 休息座椅" },
+        { name: "应急求助点(生命绿洲)", nodeNear: "生命绿洲", type: "🆘 一键求助桩" },
+        { name: "无障碍电梯(服务中心)", nodeNear: "游客服务中心", type: "🛗 无障碍电梯" }
+    ];
+
+    // 辅助函数
+    function getEdgeProps(n1, n2) {
+        let edge = edges.find(e => (e.from === n1 && e.to === n2) || (e.from === n2 && e.to === n1));
+        return edge || { dist: 999, stairs: true, steep: true };
+    }
+
+    function findAllPaths(start, end, path = [], visited = new Set()) {
+        if (start === end) return [[...path, end]];
+        visited.add(start);
+        let all = [];
+        for (let edge of edges) {
+            let neighbor = null;
+            if (edge.from === start && !visited.has(edge.to)) neighbor = edge.to;
+            if (edge.to === start && !visited.has(edge.from)) neighbor = edge.from;
+            if (neighbor) {
+                let subPaths = findAllPaths(neighbor, end, [...path, start], new Set(visited));
+                all.push(...subPaths);
+            }
+        }
+        return all;
+    }
+
+    function scorePath(path, preference) {
+        let totalDist = 0, stairsCount = 0, steepCount = 0, facilitiesScore = 0;
+        for (let i = 0; i < path.length - 1; i++) {
+            let edge = getEdgeProps(path[i], path[i+1]);
+            totalDist += edge.dist;
+            if (edge.stairs) stairsCount++;
+            if (edge.steep) steepCount++;
+        }
+        let uniqueNodes = [...new Set(path)];
+        for (let node of uniqueNodes) {
+            if (nodes[node] && nodes[node].facilities) {
+                if (nodes[node].facilities.some(f => f.includes("休息") || f.includes("厕所") || f.includes("服务") || f.includes("椅"))) facilitiesScore += 1;
+                if (nodes[node].facilities.includes("无障碍厕所")) facilitiesScore += 1;
+            }
+        }
+        if (preference === 'gentle') return { score: stairsCount * 1000 + steepCount * 800 + totalDist, detail: { dist: totalDist, stairs: stairsCount, steep: steepCount, facilities: facilitiesScore } };
+        if (preference === 'short') return { score: totalDist, detail: { dist: totalDist, stairs: stairsCount, steep: steepCount, facilities: facilitiesScore } };
+        if (preference === 'facilities') return { score: - facilitiesScore * 200 + totalDist * 0.5, detail: { dist: totalDist, stairs: stairsCount, steep: steepCount, facilities: facilitiesScore } };
+        return { score: totalDist, detail: {} };
+    }
+
+    function getBestRoutes(start, end, preference) {
+        let allPaths = findAllPaths(start, end);
+        if (allPaths.length === 0) return [];
+        let scored = allPaths.map(p => ({ path: p, ...scorePath(p, preference) }));
+        scored.sort((a,b) => a.score - b.score);
+        return scored.slice(0, 3);
+    }
+
+    // ---------- 全局变量 ----------
+    let currentStart = "北门";
+    let currentEnd = "樱花园(樱花区)";
+    let currentRoutes = [];         // 存储路线对象
+    let selectedRouteIndex = 0;
+    let currentRoutePath = [];      // 当前选中的路径节点数组
+    let navSteps = [];              // 存储每一步指引文本
+    let currentNavStepIndex = 0;    // 当前步骤索引
+    let synth = window.speechSynthesis;
+
+    // DOM 元素
+    const startContainer = document.getElementById("startPoints");
+    const endContainer = document.getElementById("endPoints");
+    const planBtn = document.getElementById("planRouteBtn");
+    const routeSuggestionDiv = document.getElementById("routeSuggestion");
+    const facilitiesAlongDiv = document.getElementById("facilitiesAlong");
+    const emergencyBtn = document.getElementById("emergencyBtn");
+    const simulateClosure = document.getElementById("simulateClosureBtn");
+    const evacuationBtn = document.getElementById("evacuationBtn");
+    const voiceDestBtn = document.getElementById("voiceDestBtn");
+    const speakRouteSummary = document.getElementById("speakRouteSummary");
+    const speakFacilities = document.getElementById("speakFacilities");
+    const speakStepPrev = document.getElementById("speakStepPrev");
+    const speakStepNext = document.getElementById("speakStepNext");
+    const repeatCurrentStep = document.getElementById("repeatCurrentStep");
+    const speakEvacuation = document.getElementById("speakEvacuation");
+    const manualVoiceMsg = document.getElementById("manualVoiceMsg");
+    const canvas = document.getElementById("routeCanvas");
+    const mapImg = document.getElementById("parkMapImg");
+    const mapContainer = document.getElementById("mapContainer");
+
+    // 手动语音播报函数 (不自动调用)
+    function manualSpeak(text) {
+        if (!text) return;
+        if (synth.speaking) synth.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "zh-CN";
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        synth.speak(utterance);
+        manualVoiceMsg.innerHTML = `🔊 播报：${text.substring(0, 80)}...`;
+        setTimeout(() => { if(manualVoiceMsg.innerHTML.includes("播报")) manualVoiceMsg.innerHTML = "💬 点击按钮获取语音导航信息"; }, 4000);
+    }
+
+    // 更新当前路线的导航步骤数组
+    function updateNavStepsFromPath(path) {
+        if (!path.length) { navSteps = []; return; }
+        let steps = [];
+        for (let i = 0; i < path.length - 1; i++) {
+            let from = path[i], to = path[i+1];
+            let edge = getEdgeProps(from, to);
+            let warn = "";
+            if (edge.stairs) warn = "注意：本段有少量台阶，有扶手请慢行。";
+            else if (edge.steep) warn = "本段为平缓坡道，轮椅可顺畅通行。";
+            else warn = "路面平缓，完全无障碍。";
+            steps.push(`从 ${from} 前往 ${to}，距离约 ${edge.dist} 米。${warn}`);
+        }
+        steps.push(`恭喜！您已到达终点 ${path[path.length-1]}，祝您游园愉快！`);
+        navSteps = steps;
+        currentNavStepIndex = 0;
+    }
+
+    // 绘制路线
+    function drawRouteOnMap(routeNodes) {
+        if (!canvas || !mapImg) return;
+        const rect = mapImg.getBoundingClientRect();
+        if (rect.width === 0) return;
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!routeNodes.length) return;
+        ctx.beginPath();
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = "#E07C3C";
+        ctx.shadowBlur = 0;
+        for (let i = 0; i < routeNodes.length - 1; i++) {
+            const p1 = nodes[routeNodes[i]];
+            const p2 = nodes[routeNodes[i+1]];
+            if (p1 && p2) {
+                let x1 = p1.x * rect.width, y1 = p1.y * rect.height;
+                let x2 = p2.x * rect.width, y2 = p2.y * rect.height;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        }
+        for (let node of routeNodes) {
+            let pt = nodes[node];
+            if (pt) {
+                ctx.beginPath();
+                ctx.fillStyle = "#2C5F2D";
+                ctx.arc(pt.x * rect.width, pt.y * rect.height, 12, 0, 2*Math.PI);
+                ctx.fill();
+                ctx.fillStyle = "white";
+                ctx.font = "bold 16px 'Segoe UI'";
+                ctx.fillText("📍", pt.x * rect.width - 8, pt.y * rect.height - 8);
+            }
+        }
+    }
+
+    // 展示路线面板
+    function displayRoutesPanel() {
+        if (!currentRoutes.length) { routeSuggestionDiv.innerHTML = `<strong>📋 推荐路线</strong><br>暂无路线，请规划`; return; }
+        let html = `<strong>✨ AI生成 ${currentRoutes.length} 条无障碍路线 (点击选用)</strong><br>`;
+        currentRoutes.forEach((rt, idx) => {
+            const d = rt.detail;
+            const activeClass = (idx === selectedRouteIndex) ? "✅ 当前路线" : "可选";
+            html += `<button class="btn-outline" style="margin:6px; padding:8px 12px; font-size:0.95rem;" onclick="window.selectRoute(${idx})">${activeClass} 路线${idx+1}: 全长${d.dist}m 台阶${d.stairs}处 陡坡${d.steep}处 设施${d.facilities}个</button>`;
+        });
+        routeSuggestionDiv.innerHTML = html;
+    }
+
+    window.selectRoute = (idx) => {
+        if (!currentRoutes[idx]) return;
+        selectedRouteIndex = idx;
+        currentRoutePath = currentRoutes[idx].path;
+        drawRouteOnMap(currentRoutePath);
+        displayFacilitiesAlongRoute(currentRoutePath);
+        updateNavStepsFromPath(currentRoutePath);
+        displayRoutesPanel();
+        // 不自动语音，仅视觉反馈
+        manualVoiceMsg.innerHTML = `✅ 已选用路线${idx+1}，可点击“播报路线摘要”听取详情。`;
+    };
+
+    function displayFacilitiesAlongRoute(path) {
+        let facilitiesSet = new Set();
+        for (let node of path) {
+            if (nodes[node] && nodes[node].facilities) {
+                nodes[node].facilities.forEach(f => facilitiesSet.add(`📍 ${node}: ${f}`));
+            }
+        }
+        extraFacilities.forEach(f => {
+            if (path.includes(f.nodeNear)) facilitiesSet.add(`♿ ${f.name} (${f.type})`);
+        });
+        if (facilitiesSet.size === 0) facilitiesAlongDiv.innerHTML = "<div>沿途暂无独立设施标注</div>";
+        else facilitiesAlongDiv.innerHTML = Array.from(facilitiesSet).map(f => `<div class="facility-item">✅ ${f}</div>`).join('');
+    }
+
+    // 规划主逻辑
+    function planAndDisplay() {
+        const pref = document.querySelector('input[name="pref"]:checked').value;
+        const routes = getBestRoutes(currentStart, currentEnd, pref);
+        if (!routes.length) { routeSuggestionDiv.innerHTML = "❌ 暂无连通无障碍路径，请更换起点或终点"; currentRoutes = []; currentRoutePath = []; canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height); return; }
+        currentRoutes = routes;
+        selectedRouteIndex = 0;
+        currentRoutePath = routes[0].path;
+        drawRouteOnMap(currentRoutePath);
+        displayFacilitiesAlongRoute(currentRoutePath);
+        updateNavStepsFromPath(currentRoutePath);
+        displayRoutesPanel();
+        // 无自动语音
+    }
+
+    // ---------- 地图交互引导 (点击canvas设置起点/终点) ----------
+    function getClosestNode(clickXPercent, clickYPercent) {
+        let minDist = 0.08; // 阈值8%区域
+        let closest = null;
+        for (let [name, node] of Object.entries(nodes)) {
+            let dx = node.x - clickXPercent;
+            let dy = node.y - clickYPercent;
+            let dist = Math.hypot(dx, dy);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = name;
+            }
+        }
+        return closest;
+    }
+
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = rect.width;
+        const scaleY = rect.height;
+        const mouseX = (e.clientX - rect.left) / scaleX;
+        const mouseY = (e.clientY - rect.top) / scaleY;
+        const clickedNode = getClosestNode(mouseX, mouseY);
+        if (!clickedNode) {
+            manualVoiceMsg.innerHTML = "❌ 未识别到景点，请点击图标附近区域";
+            return;
+        }
+        const action = confirm(`点击了【${clickedNode}】\n\n确定设为【起点】吗？\n(点“取消”则设为终点)`);
+        if (action) {
+            currentStart = clickedNode;
+            manualVoiceMsg.innerHTML = `起点已设为 ${clickedNode}`;
+        } else {
+            currentEnd = clickedNode;
+            manualVoiceMsg.innerHTML = `终点已设为 ${clickedNode}`;
+        }
+        renderAllDestButtons();
+        // 可自动重绘但不自动规划，保留用户主动规划习惯
+    });
+
+    function renderAllDestButtons() {
+        const nodeNames = Object.keys(nodes);
+        startContainer.innerHTML = '';
+        endContainer.innerHTML = '';
+        nodeNames.forEach(name => {
+            const startBtn = document.createElement('button');
+            startBtn.className = `dest-btn ${currentStart === name ? 'active' : ''}`;
+            startBtn.innerText = name;
+            startBtn.onclick = () => { currentStart = name; renderAllDestButtons(); };
+            startContainer.appendChild(startBtn);
+            const endBtn = document.createElement('button');
+            endBtn.className = `dest-btn ${currentEnd === name ? 'active' : ''}`;
+            endBtn.innerText = name;
+            endBtn.onclick = () => { currentEnd = name; renderAllDestButtons(); };
+            endContainer.appendChild(endBtn);
+        });
+    }
+
+    // 自选语音模块的具体实现
+    function speakRouteSummaryFunc() {
+        if (!currentRoutePath.length) { manualSpeak("请先规划无障碍路线"); return; }
+        const route = currentRoutePath;
+        const detail = currentRoutes[selectedRouteIndex]?.detail;
+        let summary = `无障碍路线从${route[0]}到${route[route.length-1]}，共${route.length-1}段，总长约${detail?.dist || '未知'}米，沿途有${detail?.facilities || 0}个服务设施。`;
+        manualSpeak(summary);
+    }
+    function speakFacilitiesFunc() {
+        if (!currentRoutePath.length) { manualSpeak("请先规划路线"); return; }
+        let facText = "沿途无障碍设施包括：";
+        const facDiv = document.getElementById("facilitiesAlong");
+        const items = facDiv.querySelectorAll(".facility-item");
+        if(items.length === 0) facText = "暂无详细设施信息";
+        else {
+            let names = Array.from(items).map(el => el.innerText.slice(2));
+            facText += names.join("；");
+        }
+        manualSpeak(facText);
+    }
+    function speakPrevStep() {
+        if (!navSteps.length) { manualSpeak("尚无路线导航步骤，请先规划路线"); return; }
+        if (currentNavStepIndex > 0) currentNavStepIndex--;
+        manualSpeak(navSteps[currentNavStepIndex]);
+    }
+    function speakNextStep() {
+        if (!navSteps.length) { manualSpeak("请先规划路线"); return; }
+        if (currentNavStepIndex < navSteps.length - 1) currentNavStepIndex++;
+        manualSpeak(navSteps[currentNavStepIndex]);
+    }
+    function repeatCurrent() {
+        if (!navSteps.length) { manualSpeak("无导航步骤"); return; }
+        manualSpeak(navSteps[currentNavStepIndex]);
+    }
+
+    // 应急功能 (手动触发语音)
+    emergencyBtn.onclick = () => {
+        alert("🚨 紧急求助已发送！公园救援电话：88653774 (24小时) 已通知家人及景区安保");
+        manualSpeak("紧急求助已发送，请保持冷静，景区救援人员将尽快到达，您也可前往最近服务中心。");
+    };
+    simulateClosure.onclick = () => {
+        if (!currentRoutePath.length) { alert("请先规划路线"); return; }
+        alert("模拟：中堤桥周边临时封闭，正在重新规划绕行路径…");
+        const tempEdges = edges.filter(e => !(e.from === "中堤桥" || e.to === "中堤桥"));
+        const originalFind = findAllPaths;
+        window.findAllPaths = function(s,e,p,vis){ 
+            let all = [];
+            let visitedSet = vis || new Set();
+            if(s===e) return [[...p, e]];
+            visitedSet.add(s);
+            for(let edge of tempEdges){
+                let neighbor = null;
+                if(edge.from === s && !visitedSet.has(edge.to)) neighbor = edge.to;
+                if(edge.to === s && !visitedSet.has(edge.from)) neighbor = edge.from;
+                if(neighbor){
+                    let sub = findAllPaths(neighbor, e, [...p, s], new Set(visitedSet));
+                    all.push(...sub);
+                }
+            }
+            return all;
+        };
+        const pref = document.querySelector('input[name="pref"]:checked').value;
+        const newRoutes = getBestRoutes(currentStart, currentEnd, pref);
+        if(newRoutes.length){
+            currentRoutes = newRoutes;
+            selectedRouteIndex = 0;
+            currentRoutePath = newRoutes[0].path;
+            drawRouteOnMap(currentRoutePath);
+            displayFacilitiesAlongRoute(currentRoutePath);
+            updateNavStepsFromPath(currentRoutePath);
+            displayRoutesPanel();
+            manualSpeak("已避开封闭路段，新路线生成完成。");
+        } else manualSpeak("无法避开封闭路段，请使用疏散功能");
+        window.findAllPaths = originalFind;
+    };
+    evacuationBtn.onclick = () => {
+        const exits = ["北门", "南门", "西南门", "西北门"];
+        let bestPath = null;
+        for(let ex of exits){
+            let paths = findAllPaths(currentStart, ex);
+            if(paths.length){ bestPath = paths.sort((a,b)=>scorePath(a,'short').score)[0]; break; }
+        }
+        if(bestPath){
+            currentRoutePath = bestPath;
+            drawRouteOnMap(bestPath);
+            displayFacilitiesAlongRoute(bestPath);
+            updateNavStepsFromPath(bestPath);
+            displayRoutesPanel();
+            manualSpeak(`应急疏散路线已规划至${bestPath[bestPath.length-1]}，请按照指引撤离。`);
+        } else manualSpeak("无法生成疏散路线，请原地求助并拨打救援电话");
+    };
+    speakEvacuation.onclick = () => {
+        if(currentRoutePath.length && (currentRoutePath[0] === "北门" || currentRoutePath[currentRoutePath.length-1] === "北门" || currentRoutePath.includes("南门")))
+            manualSpeak("当前路线为应急疏散路线，请沿规划路径前往出口，注意安全。");
+        else manualSpeak("请先点击‘最近无障碍出口’生成疏散路线，再播报指引。");
+    };
+
+    // 绑定手动语音按钮
+    speakRouteSummary.onclick = speakRouteSummaryFunc;
+    speakFacilities.onclick = speakFacilitiesFunc;
+    speakStepPrev.onclick = speakPrevStep;
+    speakStepNext.onclick = speakNextStep;
+    repeatCurrentStep.onclick = repeatCurrent;
+
+    // 语音选择终点 (不影响自动播报)
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'zh-CN';
+        voiceDestBtn.onclick = () => {
+            recognition.start();
+            manualVoiceMsg.innerHTML = "🎙️ 请说出目的地名称...";
+            recognition.onresult = (event) => {
+                let spoken = event.results[0][0].transcript;
+                let matched = Object.keys(nodes).find(n => spoken.includes(n) || n.includes(spoken));
+                if(matched) { currentEnd = matched; renderAllDestButtons(); planAndDisplay(); manualSpeak(`已将终点设为${matched}`); }
+                else manualSpeak("未识别景点，请手动选择");
+            };
+        };
+    } else { voiceDestBtn.disabled = true; voiceDestBtn.innerText = "语音不支持"; }
+
+    planBtn.onclick = planAndDisplay;
+    renderAllDestButtons();
+    window.addEventListener('resize', () => { if(currentRoutePath.length) drawRouteOnMap(currentRoutePath); });
+    // 初始默认显示路线
+    setTimeout(() => { planAndDisplay(); }, 300);
+</script>
+</body>
+</html>
